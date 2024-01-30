@@ -18,13 +18,10 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const commander_1 = require("commander");
-// import inquirer from "inquirer";
 const promises_1 = require("fs/promises");
 const fs_1 = require("fs");
 const path_1 = require("path");
 const compressing_1 = require("compressing");
-// import { createGzip } from "zlib";
-// import { pipeline } from "stream";
 const hasFileOrDir = (filename, isFile = true) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const path = (0, path_1.resolve)(filename);
@@ -35,11 +32,11 @@ const hasFileOrDir = (filename, isFile = true) => __awaiter(void 0, void 0, void
         return false;
     }
 });
-const readPkgName = (path) => __awaiter(void 0, void 0, void 0, function* () {
+const readPkg = (path, key = "name") => __awaiter(void 0, void 0, void 0, function* () {
     var _b, e_1, _c, _d;
     var _e;
     const rs = (0, fs_1.createReadStream)(path, "utf-8");
-    let incompleteLine = "", name;
+    let incompleteLine = "", val;
     try {
         for (var _f = true, rs_1 = __asyncValues(rs), rs_1_1; rs_1_1 = yield rs_1.next(), _b = rs_1_1.done, !_b; _f = true) {
             _d = rs_1_1.value;
@@ -47,9 +44,9 @@ const readPkgName = (path) => __awaiter(void 0, void 0, void 0, function* () {
             const chunk = _d;
             const lines = (incompleteLine + chunk).split("\n");
             for (const line of lines) {
-                const [, _name] = (_e = line.trim().match(/"name":\s?"(.+)"/)) !== null && _e !== void 0 ? _e : [];
-                if (_name) {
-                    name = _name;
+                const [, _val] = (_e = line.trim().match(new RegExp(`"${key}":\\s?"(.+)"`, "i"))) !== null && _e !== void 0 ? _e : [];
+                if (_val) {
+                    val = _val;
                     break;
                 }
             }
@@ -62,7 +59,7 @@ const readPkgName = (path) => __awaiter(void 0, void 0, void 0, function* () {
         }
         finally { if (e_1) throw e_1.error; }
     }
-    return name;
+    return val;
 });
 const clean = (path) => __awaiter(void 0, void 0, void 0, function* () {
     if (yield hasFileOrDir(path)) {
@@ -74,34 +71,35 @@ const compress = (source, target) => __awaiter(void 0, void 0, void 0, function*
     yield compressing_1.zip.compressDir(source, target);
     console.log("compress success!");
 });
-commander_1.program
-    .command("gen-zip [name]")
-    .usage("[zip name]")
-    .version("1.0.0")
-    .option("-f --format", "zip format", "zip")
-    .option("-s --source", "source name", "dist")
-    .action((name, cmd) => __awaiter(void 0, void 0, void 0, function* () {
-    // const gzipper = createGzip();
-    const { format, source: sourceName } = cmd;
-    const sourcePath = yield hasFileOrDir(sourceName, false);
-    if (sourcePath) {
-        if (name) {
-            compress(sourceName, `${name}.${format}`);
-        }
-        else {
-            const pkgPath = yield hasFileOrDir("package.json");
-            if (pkgPath) {
-                const pkgName = yield readPkgName(pkgPath);
-                if (pkgName) {
-                    // const source = createReadStream(sourceName);
-                    // const destination = createWriteStream(`${pkgPath}.${format}`);
-                    compress(sourcePath, `${pkgName}.${format}`);
+readPkg((0, path_1.resolve)(__dirname, "../package.json"), "version")
+    .then((version = "1.0.0") => {
+    commander_1.program
+        .command("gen-zip [name]")
+        .usage("[zip name]")
+        .version(version)
+        .option("-f --format <ext>", "zip format", "zip")
+        .option("-s --source <name>", "source name", "dist")
+        .action((name, cmd) => __awaiter(void 0, void 0, void 0, function* () {
+        const { format, source: sourceName } = cmd;
+        const sourcePath = yield hasFileOrDir(sourceName, false);
+        if (sourcePath) {
+            if (name) {
+                compress(sourceName, `${name}.${format}`);
+            }
+            else {
+                const pkgPath = yield hasFileOrDir("package.json");
+                if (pkgPath) {
+                    const pkgName = yield readPkg(pkgPath);
+                    if (pkgName) {
+                        compress(sourcePath, `${pkgName}.${format}`);
+                    }
                 }
             }
         }
-    }
-    else {
-        console.warn("source must be a folder");
-    }
-}))
-    .parse(process.argv);
+        else {
+            console.warn("source must be a folder");
+        }
+    }))
+        .parse(process.argv);
+})
+    .catch(console.warn);

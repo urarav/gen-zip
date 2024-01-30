@@ -1,7 +1,7 @@
 {
   "name": "gen-zip",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.2",
+  "description": "a simple cmd tool used to generate a release zip when deploy a project.",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc"
@@ -9,16 +9,21 @@
   "bin": {
     "gen-zip": "./dist/index.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "node",
+    "cmd"
+  ],
+  "author": "urarav",
   "license": "ISC",
   "devDependencies": {
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.11.5",
-    "commander": "^11.1.0",
-    "compressing": "^1.10.0",
-    "inquirer": "^9.2.12",
     "nodemon": "^3.0.3",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "compressing": "^1.10.0",
+    "inquirer": "^9.2.13"
   }
 }

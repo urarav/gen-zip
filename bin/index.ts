@@ -2,12 +2,9 @@
 
 import { program } from "commander";
 import { stat, unlink } from "fs/promises";
-import { createReadStream, createWriteStream } from "fs";
+import { createReadStream } from "fs";
 import { resolve } from "path";
 import { zip } from "compressing";
-// import inquirer from "inquirer";
-// import { createGzip } from "zlib";
-// import { pipeline } from "stream";
 
 const hasFileOrDir = async (filename: string, isFile = true) => {
   try {
@@ -19,21 +16,22 @@ const hasFileOrDir = async (filename: string, isFile = true) => {
   }
 };
 
-const readPkgName = async (path: string) => {
+const readPkg = async (path: string, key = "name") => {
   const rs = createReadStream(path, "utf-8");
   let incompleteLine = "",
-    name;
+    val;
   for await (const chunk of rs) {
     const lines = (incompleteLine + chunk).split("\n");
     for (const line of lines) {
-      const [, _name] = line.trim().match(/"name":\s?"(.+)"/) ?? [];
-      if (_name) {
-        name = _name;
+      const [, _val] =
+        line.trim().match(new RegExp(`"${key}":\\s?"(.+)"`, "i")) ?? [];
+      if (_val) {
+        val = _val;
         break;
       }
     }
   }
-  return name;
+  return val;
 };
 
 const clean = async (path: string) => {
@@ -48,32 +46,33 @@ const compress = async (source: string, target: string) => {
   console.log("compress success!");
 };
 
-program
-  .command("gen-zip [name]")
-  .usage("[zip name]")
-  .version("1.0.0")
-  .option("-f --format", "zip format", "zip")
-  .option("-s --source", "source name", "dist")
-  .action(async (name, cmd) => {
-    // const gzipper = createGzip();
-    const { format, source: sourceName } = cmd;
-    const sourcePath = await hasFileOrDir(sourceName, false);
-    if (sourcePath) {
-      if (name) {
-        compress(sourceName, `${name}.${format}`);
-      } else {
-        const pkgPath = await hasFileOrDir("package.json");
-        if (pkgPath) {
-          const pkgName = await readPkgName(pkgPath);
-          if (pkgName) {
-            // const source = createReadStream(sourceName);
-            // const destination = createWriteStream(`${pkgPath}.${format}`);
-            compress(sourcePath, `${pkgName}.${format}`);
+readPkg(resolve(__dirname, "../package.json"), "version")
+  .then((version = "1.0.0") => {
+    program
+      .command("gen-zip [name]")
+      .usage("[zip name]")
+      .version(version)
+      .option("-f --format <ext>", "zip format", "zip")
+      .option("-s --source <name>", "source name", "dist")
+      .action(async (name, cmd) => {
+        const { format, source: sourceName } = cmd;
+        const sourcePath = await hasFileOrDir(sourceName, false);
+        if (sourcePath) {
+          if (name) {
+            compress(sourceName, `${name}.${format}`);
+          } else {
+            const pkgPath = await hasFileOrDir("package.json");
+            if (pkgPath) {
+              const pkgName = await readPkg(pkgPath);
+              if (pkgName) {
+                compress(sourcePath, `${pkgName}.${format}`);
+              }
+            }
           }
+        } else {
+          console.warn("source must be a folder");
         }
-      }
-    } else {
-      console.warn("source must be a folder");
-    }
+      })
+      .parse(process.argv);
   })
-  .parse(process.argv);
+  .catch(console.warn);
